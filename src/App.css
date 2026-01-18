@@ -1,0 +1,406 @@
+/* =========================================
+   1. Variables & Base
+   ========================================= */
+:root {
+  /* Colors */
+  --bg-color: #f0f2f5;
+  --card-bg: #ffffff;
+  --primary-color: #396cd8;
+  --success-color: #2ecc71;
+  --success-bg: #e8f8f0;
+  --danger-color: #e74c3c;
+  --text-color: #333;
+  --text-muted: #666;
+  --border-color: #ddd;
+  
+  /* Dimensions & Spacing */
+  --border-radius: 12px;
+  --max-width: 900px;
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-color);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--text-color);
+  /* Ensure consistent sizing */
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* Main Layout Container */
+.container {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 20px 0;
+}
+
+.section-title {
+  font-size: 0.9rem;
+  color: #777;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* =========================================
+   2. Network Status Chips
+   ========================================= */
+.status-overview {
+  margin-bottom: 20px;
+}
+
+.status-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.status-chip {
+  padding: 8px 16px;
+  background: #e4e6eb;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  border: 2px solid transparent;
+  transition: all 0.3s;
+  cursor: default;
+}
+
+.status-chip.chip-online {
+  background: white;
+  color: #219150;
+  border-color: var(--success-color);
+  box-shadow: 0 2px 4px rgba(46, 204, 113, 0.2);
+}
+
+.status-chip.chip-offline {
+  opacity: 0.7;
+}
+
+.chip-name {
+  white-space: nowrap;
+}
+
+/* Status Icons (Used in chips and tabs) */
+.status-icon {
+  font-size: 0.8rem;
+}
+.status-icon.online { color: var(--success-color); }
+.status-icon.offline { color: #ccc; }
+
+/* =========================================
+   3. Navigation Tabs
+   ========================================= */
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 0;
+  padding-left: 10px;
+}
+
+.tab-button {
+  padding: 12px 24px;
+  border: none;
+  background: #e4e6eb;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: #d8dadf;
+}
+
+.tab-button.active {
+  background: var(--card-bg);
+  color: var(--primary-color);
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+  position: relative;
+  z-index: 1;
+}
+
+/* Online state styling for tabs */
+.tab-button.tab-online {
+  color: #27ae60;
+}
+.tab-button.active.tab-online {
+  color: #219150;
+  border-top: 3px solid var(--success-color);
+}
+
+/* =========================================
+   4. Main Control Card
+   ========================================= */
+.tab-content {
+  background: var(--card-bg);
+  padding: 30px 40px;
+  border-radius: var(--border-radius);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  min-height: auto;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.tab-content.online-mode {
+  border: 2px solid var(--success-color);
+  background: linear-gradient(to bottom, var(--success-bg) 0%, #ffffff 15%);
+}
+
+/* --- Card Header --- */
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 15px;
+}
+
+.header-left {
+  display: flex;
+  align-items: baseline;
+  gap: 15px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.robot-title {
+  margin: 0;
+  font-size: 1.8rem;
+  color: var(--text-color);
+}
+
+.robot-ip {
+  font-size: 1.1rem;
+  color: #888;
+  font-family: monospace;
+  font-weight: 500;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-weight: bold;
+  font-size: 0.9rem;
+}
+.badge-online { background-color: var(--success-color); color: white; }
+.badge-offline { background-color: #f1f2f6; color: #7f8fa6; }
+
+/* =========================================
+   5. Actions & Buttons
+   ========================================= */
+   
+/* --- Header Icon Buttons (Circular) --- */
+.header-icon-button {
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Shutdown Button Style */
+.header-icon-button.circle-danger {
+  width: 45px;
+  height: 45px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #ccc;
+  color: #555;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+}
+
+.header-icon-button.circle-danger:hover {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+  background-color: #fff8f8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.3);
+}
+
+.header-icon-button.circle-danger:active {
+  transform: translateY(0) scale(0.95);
+  box-shadow: 0 1px 2px rgba(231, 76, 60, 0.2);
+  background-color: #fee2e2;
+}
+
+/* --- Main Action Buttons --- */
+.button-group {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 30px;
+}
+
+.action-button {
+  padding: 16px 32px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: transform 0.1s;
+}
+
+.action-button:active { transform: scale(0.98); }
+
+.action-button.primary { 
+  background-color: var(--primary-color); 
+  color: white; 
+}
+
+.action-button.secondary { 
+  background-color: #fff; 
+  color: #555; 
+  border: 2px solid #ddd; 
+}
+
+.action-button.danger {
+  background-color: #fff;
+  color: var(--danger-color);
+  border: 2px solid var(--danger-color);
+  margin-left: auto;
+}
+
+.action-button.danger:hover {
+  background-color: var(--danger-color);
+  color: white;
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
+
+/* =========================================
+   6. Utilities (Loading & Modal)
+   ========================================= */
+   
+/* --- Loading Spinner --- */
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  color: #888;
+  margin-top: 10px;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid var(--primary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin { 
+  0% { transform: rotate(0deg); } 
+  100% { transform: rotate(360deg); } 
+}
+
+/* --- Modal --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+
+.modal-content {
+  background: white;
+  padding: 30px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+  width: 90%;
+  max-width: 400px;
+  text-align: center;
+  animation: popIn 0.2s ease-out;
+}
+
+@keyframes popIn {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.modal-title {
+  margin-top: 0;
+  color: var(--text-color);
+  font-size: 1.4rem;
+}
+
+.modal-message {
+  color: var(--text-muted);
+  margin: 20px 0 30px;
+  line-height: 1.5;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.modal-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s;
+}
+
+.modal-button.cancel {
+  background-color: #f0f2f5;
+  color: #555;
+}
+.modal-button.cancel:hover {
+  background-color: #e4e6eb;
+}
+
+.modal-button.confirm {
+  background-color: var(--danger-color);
+  color: white;
+}
+.modal-button.confirm:hover {
+  background-color: #c0392b;
+  box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
+}
