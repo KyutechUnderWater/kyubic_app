@@ -1,0 +1,19 @@
+services:
+  tauri-dev:
+    build:
+      context: .
+    image: tauri
+    network_mode: host
+    tty: true
+    working_dir: /app
+    hostname: tauri-build
+    environment:
+      - DISPLAY=${DISPLAY}
+      - NO_AT_BRIDGE=1
+    devices:
+      - /dev/dri:/dev/dri
+    volumes:
+      - ../:/app
+      - /tmp/.X11-unix:/tmp/.X11-unix
+    # ports:
+    #   - "1420:1420" # Tauriのデフォルト開発サーバーポート
