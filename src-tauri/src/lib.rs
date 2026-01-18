@@ -22,21 +22,32 @@ async fn check_connection_status(target: String) -> bool {
 #[tauri::command]
 fn open_ssh_terminal(
     hostname: String,
-    _ip: String,
+    ip: String,
     run_ros: bool,
     remote_command: String,
 ) -> Result<(), String> {
+    // Detect Localhost
+    let is_local = ip == "127.0.0.1" || hostname == "localhost";
+
     // Build the SSH command arguments
-    let ssh_args = if run_ros {
-        // Run a specific command (e.g., ROS2 start script) inside the SSH session
-        format!("ssh -t {} \"bash -i -c '{}'\"", hostname, remote_command)
+    let shell_args = if is_local {
+        // Local Mode
+        if run_ros {
+            format!("bash -i -c '{}'", remote_command)
+        } else {
+            "echo 'Starting Local Terminal'".to_string()
+        }
     } else {
-        // Standard SSH connection
-        format!("ssh {}", hostname)
+        // SSH Conection Mode
+        if run_ros {
+            format!("ssh -t {} \"bash -i -c '{}'\"", hostname, remote_command)
+        } else {
+            format!("ssh {}", hostname)
+        }
     };
 
     // Open in a new tab
-    launch_terminal(&ssh_args, WindowMode::Tab)
+    launch_terminal(&shell_args, WindowMode::Tab)
 }
 
 #[tauri::command]
@@ -177,6 +188,7 @@ fn launch_on_linux(ssh_args: &str, mode: WindowMode) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .invoke_handler(tauri::generate_handler![
             check_connection_status,
             open_ssh_terminal,

@@ -8,6 +8,7 @@ import "./App.css";
 
 // Target robots for the main control tabs
 const ROBOTS = [
+  { id: "localhost", name: "localhost", ip: "127.0.0.1", allowRos: true },
   { id: "main", name: "kyubic_main", ip: "192.168.9.100", allowRos: true },
   { id: "jetson", name: "kyubic_jetson", ip: "192.168.9.110", allowRos: false },
   { id: "rpi5", name: "kyubic_rpi5", ip: "192.168.9.120", allowRos: false },
@@ -15,6 +16,7 @@ const ROBOTS = [
 
 // List of all devices to monitor in the status overview
 const ALL_DEVICES = [
+  { name: "localhost", ip: "127.0.0.1"},
   { name: "Sensor (ESP32)", ip: "192.168.9.5" },
   { name: "DVL", ip: "192.168.9.10" },
   { name: "GNSS", ip: "192.168.9.20" },
@@ -30,10 +32,13 @@ const ALL_DEVICES = [
 // =========================================
 
 function App() {
+  const isLinux = navigator.userAgent.toLowerCase().includes("linux");
+
   // --- State Management ---
   const [activeTab, setActiveTab] = useState(0);
   const [deviceStatus, setDeviceStatus] = useState({});
   const [shutdownTarget, setShutdownTarget] = useState(null);
+  const [inputIp, setInputIp] = useState(isLinux ? "localhost" : "192.168.9.100");
 
   // --- Effects ---
   useEffect(() => {
@@ -50,6 +55,11 @@ function App() {
   // Ping all devices to update status
   const updateAllStatuses = () => {
     ALL_DEVICES.forEach(async (device) => {
+      if (device.ip === "127.0.0.1") {
+        setDeviceStatus((prev) => ({ ...prev, [device.ip]: true }));
+        return;
+      }
+
       try {
         const isOnline = await invoke("check_connection_status", { target: device.ip });
         setDeviceStatus((prev) => ({ ...prev, [device.ip]: isOnline }));
@@ -99,6 +109,10 @@ function App() {
         <h3 className="section-title">Network Status</h3>
         <div className="status-grid">
           {ALL_DEVICES.map((device) => {
+            // Skip display if not localhost and not Linux
+            const isLocalhost = device.ip === "127.0.0.1";
+            if (isLocalhost) return null;
+
             const isOnline = deviceStatus[device.ip];
             return (
               <div 
@@ -124,6 +138,10 @@ function App() {
       {/* Tab Navigation */}
       <div className="tabs">
         {ROBOTS.map((robot, index) => {
+          // Skip display if not localhost and not Linux
+          const isLocalhost = robot.ip === "127.0.0.1";
+          if (isLocalhost && !isLinux) return null;
+
           const robotOnline = deviceStatus[robot.ip];
           return (
             <button
@@ -201,6 +219,49 @@ function App() {
               <p>Searching for device...</p>
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="divider"></div>
+
+      {/* 3. External Web Interfaces */}
+      <div className="web-tools-section">
+        <h3 className="section-title">Web Dashboards</h3>
+        
+        <div className="web-tools-card-horizontal">
+          {/* IP入力エリア */}
+          <div className="input-container-compact">
+            <span className="input-prefix">http://</span>
+            <input 
+              type="text" 
+              className="ip-input-enhanced" 
+              placeholder="Target IP" 
+              value={inputIp}
+              onChange={(e) => setInputIp(e.target.value)}
+            />
+          </div>
+
+          {/* DashBoard リンク */}
+          <a 
+            href={`http://${inputIp || (isLinux ? 'localhost' : '192.168.9.100')}:8080`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="web-btn-sm dashboard-btn"
+          >
+            <span className="btn-icon-sm">📊</span>
+            <span className="btn-label-sm">DashBoard</span>
+          </a>
+
+          {/* 3d viewer リンク */}
+          <a 
+            href={`http://${inputIp || (isLinux ? 'localhost' : '192.168.9.100')}:8081`} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="web-btn-sm viewer-btn"
+          >
+            <span className="btn-icon-sm">🧊</span>
+            <span className="btn-label-sm">3d viewer</span>
+          </a>
         </div>
       </div>
 

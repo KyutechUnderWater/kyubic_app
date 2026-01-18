@@ -404,3 +404,170 @@ body {
   background-color: #c0392b;
   box-shadow: 0 4px 8px rgba(231, 76, 60, 0.3);
 }
+
+.web-tools-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+}
+
+.web-tools-card-horizontal {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  padding: 1px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.input-container {
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 8px 16px;
+  margin-bottom: 20px;
+  border: 1px solid #333;
+  transition: border-color 0.3s;
+}
+
+.input-container:focus-within {
+  border-color: #646cff;
+}
+
+.input-prefix {
+  color: #666;
+  font-family: monospace;
+  margin-right: 4px;
+  user-select: none;
+}
+
+.ip-input-enhanced {
+  background: transparent;
+  border: none;
+  color: white;
+  font-size: 1.1rem;
+  font-family: 'JetBrains Mono', monospace;
+  width: 100%;
+  outline: none;
+}
+
+.web-button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.web-btn {
+  display: block; /* aタグをブロック要素にしてクリック範囲を広げる */
+  text-decoration: none; /* 下線を消す */
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  color: white !important; /* リンク色を強制的に白にする */
+  text-align: left;
+}
+
+.web-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+  color: white; /* ホバー時も色を維持 */
+}
+.web-btn:active {
+  transform: translateY(0);
+}
+
+/* Dashboard Button Style (Blue Gradient) */
+.dashboard-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+}
+
+/* Viewer Button Style (Purple Gradient) */
+.viewer-btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+}
+
+.btn-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-icon {
+  font-size: 2rem;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 8px;
+  border-radius: 10px;
+}
+
+.btn-text {
+  display: flex;
+  vertical-align: middle;
+  flex-direction: column;
+}
+
+.btn-label {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.5px;
+}
+
+.btn-subtext {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* 入力エリアの幅を調整 */
+.input-container-compact {
+  display: flex;
+  align-items: center;
+  background: #1a1a1a;
+  border-radius: 8px;
+  padding: 8px 12px;
+  border: 1px solid #333;
+  flex: 1; /* 空きスペースを埋める */
+  min-width: 150px;
+}
+
+/* コンパクトなボタンのスタイル */
+.web-btn-sm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  color: white !important;
+  font-weight: 600;
+  white-space: nowrap; /* 改行防止 */
+  transition: transform 0.2s, box-shadow 0.2s;
+  flex-shrink: 0; /* ボタンが潰れないように固定 */
+}
+
+.web-btn-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.btn-icon-sm {
+  font-size: 1.2rem;
+}
+
+.btn-label-sm {
+  font-size: 0.95rem;
+}
+
+/* 既存のグラデーションを流用 */
+.dashboard-btn {
+  background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
+}
+
+.viewer-btn {
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 100%);
+}
