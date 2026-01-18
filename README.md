@@ -4,6 +4,7 @@ KYUBICの起動を楽にするアプリ
 
 <img width="480" alt="image" src="https://github.com/user-attachments/assets/76b4c129-4b22-4ea1-8171-474cdd036863" />
 
+<br><br>
 
 ## Install App
 
@@ -17,6 +18,8 @@ kyubic-app
 # appimage
 ./{your download dir}/kyubic-app_0.1.0_amd64.AppImage
 ```
+
+<br>
 
 ## Develop
 ### Installation
