@@ -14,7 +14,7 @@
       {
         "title": "kyubic-app",
         "width": 800,
-        "height": 640,
+        "height": 800,
         "resizable": true,
         "fullscreen": false
       }
