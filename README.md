@@ -2,7 +2,8 @@
 
 KYUBICの起動を楽にするアプリ
 
-<img width="480" alt="image" src="https://github.com/user-attachments/assets/76b4c129-4b22-4ea1-8171-474cdd036863" />
+<img width="480" height="1116" alt="image" src="https://github.com/user-attachments/assets/d3f49f49-62db-4aab-ab9d-e8c1b0379251" />
+
 
 <br><br>
 
@@ -23,6 +24,7 @@ kyubic-app
 
 ## Develop
 ### Installation
+#### == Native ==
 Install apt packages
 ```bash
 sudo apt update
@@ -52,12 +54,45 @@ echo "PATH=$PATH:~/.nvm/versions/node/v24.13.0/bin" >> ~/.bashrc
 Install rust
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+. "$HOME/.cargo/env"
 ```
+
+<br>
+
+#### == Docker ==
+```
+# Before executing the following command, clone it.
+cd docker
+docker compose up -d
+docker compose exec tauri-dev bash
+```
+
+<br>
+
+### Clone and Sync
+```bash
+# Clone repo
+git clone
+
+# Install npm dependencies
+npm install
+```
+
+<br>
 
 ### Hot Reload
 ```bash
 npm run tauri dev
 ```
+
+<br>
+
+###  Generate icon
+```bash
+npm run tauri icon src-tauri/icons/KYUBIC_RoboSub2022_v3.png
+```
+
+<br>
 
 ### Release Build
 ```bash
