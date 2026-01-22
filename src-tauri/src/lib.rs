@@ -97,10 +97,10 @@ fn exec_shutdown_command(hostname: String) -> Result<(), String> {
 #[tauri::command]
 async fn run_system_check(hostname: String) -> Result<SystemCheckReport, String> {
     // パイプライン処理を含む複雑なリモートコマンド
-    let remote_cmd = r#"ros2_start -- bash -i -c 'RCUTILS_CONSOLE_OUTPUT_FORMAT="{message}" ros2 launch system_check system_check.launch.py | sed -u "s/^\[component_container-[0-9]\+\][: ]*//g"'"#;
+    let remote_cmd = r##"bash -i -c 'ros2_start -- bash -i -c "RCUTILS_CONSOLE_OUTPUT_FORMAT=\"{message}\" ros2 launch system_health_check system_health_check.launch.py | sed -u \"s/^\[component_container_mt-[0-9]\+\][: ]*//g\""'"##;
 
-    let output = Command::new("bash")
-        .args(["-i", "-c", remote_cmd])
+    let output = Command::new("ssh")
+        .args([&hostname, remote_cmd])
         .output()
         .map_err(|e| format!("SSH execution failed: {}", e))?;
 
@@ -111,6 +111,8 @@ async fn run_system_check(hostname: String) -> Result<SystemCheckReport, String>
         // エラー時も標準出力があればパースを試みる場合もあるが、ここではエラーを返す
         return Err(format!("Exit code: {}\nStdErr: {}", output.status, stderr));
     }
+
+    println!("--- Remote Environment Variables ---\n{}", stdout);
 
     Ok(parse_check_output(&stdout))
 }
@@ -210,6 +212,24 @@ fn parse_check_output(text: &str) -> SystemCheckReport {
                 name,
                 description: desc,
                 details,
+            });
+        } else if clean.starts_with("Plugin error:") {
+            // エラー文言中の "class type XXXXX" からクラス名を抽出
+            let name = if let Some(idx) = clean.find("class type ") {
+                clean[idx + 11..]
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("Plugin Error")
+                    .to_string()
+            } else {
+                "Plugin Load Error".to_string()
+            };
+
+            summary_items.push(CheckItem {
+                status: "FAIL".to_string(),
+                name,
+                description: clean.clone(), // エラー文全体を表示
+                details: format!("Raw Error: {}", clean),
             });
         }
     }

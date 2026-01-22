@@ -7,7 +7,7 @@ const MASTER_CONFIG = [
   // Computers (sshName: SSH接続時のホスト名, uiName: UI表示名)
   // type: "computer" は操作対象のPC群
   { type: "computer", sshName: "localhost",     uiName: "localhost",   ip: "127.0.0.1",      allowRos: true },
-  { type: "computer", sshName: "kyubic_main",   uiName: "Main PC",     ip: "192.168.50.101", allowRos: true },
+  { type: "computer", sshName: "kyubic_main",   uiName: "Main PC",     ip: "192.168.9.100", allowRos: true },
   { type: "computer", sshName: "kyubic_jetson", uiName: "Jetson",      ip: "192.168.9.110",  allowRos: false },
   { type: "computer", sshName: "kyubic_rpi5",   uiName: "RPi 5",       ip: "192.168.9.120",  allowRos: false },
 
@@ -212,6 +212,7 @@ function App() {
   const [checkResult, setCheckResult] = useState(null);
   const [isChecking, setIsChecking] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
 
   const currentRobot = COMPUTERS[activeTab];
   const isOnline = !!deviceStatus[currentRobot.ip];
@@ -251,9 +252,22 @@ function App() {
     finally { setIsChecking(false); }
   }, []);
 
+  useEffect(() => {
+    let interval;
+    if (isChecking) {
+      const startTime = Date.now();
+      setElapsedTime(0); // 開始時にリセット
+      interval = setInterval(() => {
+        // 現在時刻 - 開始時刻 で経過秒数を算出
+        setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isChecking]);
+
   // Determine button state for System Check
   let checkBtnProps = { icon: "🛡️", text: "RUN CHECK", disabled: false };
-  if (isChecking) checkBtnProps = { icon: "⏳", text: "CHECKING...", disabled: true };
+  if (isChecking) checkBtnProps = { icon: "⏳", text: `CHECKING... ${elapsedTime}s`, disabled: true };
   else if (!isMainOnline) checkBtnProps = { icon: "🚫", text: "OFFLINE", disabled: true };
 
   return (

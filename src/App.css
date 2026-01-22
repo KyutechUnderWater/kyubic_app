@@ -184,7 +184,7 @@ body { margin: 0; padding: 0; background-color: var(--bg-app); color: var(--text
 .text-success { color: var(--success-text); }
 .text-danger { color: var(--danger-strong); }
 .text-strong { font-size: 1.2rem; color: #1a202c; }
-.modal-message { color: #4a5568; font-weight: 600; margin-bottom: 24px; lineHeight: 1.6; }
+.modal-message { color: #4a5568; font-weight: 600; margin-bottom: 24px; line-height: 1.6; }
 
 .section-container { margin-bottom: 2rem; }
 .critical-header { color: var(--danger-strong); margin: 0 0 12px 0; font-weight: 800; font-size: 0.9rem; }
