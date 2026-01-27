@@ -1,9 +1,10 @@
-FROM ubuntu:24.04
+FROM ubuntu:22.04
 
 SHELL [ "/bin/bash", "-c" ]
 
 # Install dependencies of Tauri
 RUN apt-get update && apt-get install -y \
+    vim \
     curl \
     wget \
     unzip \
