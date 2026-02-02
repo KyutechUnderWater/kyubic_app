@@ -1,291 +1,354 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
 
-// =========================================
-// 1. Constants & Configuration
-// =========================================
+// --- Constants ---
+const MASTER_CONFIG = [
+  // Computers (sshName: SSH接続時のホスト名, uiName: UI表示名)
+  // type: "computer" は操作対象のPC群
+  { type: "computer", sshName: "localhost",     uiName: "localhost",   ip: "127.0.0.1",      allowRos: true },
+  { type: "computer", sshName: "kyubic_main",   uiName: "Main PC",     ip: "192.168.9.100", allowRos: true },
+  { type: "computer", sshName: "kyubic_jetson", uiName: "Jetson",      ip: "192.168.9.110",  allowRos: false },
+  { type: "computer", sshName: "kyubic_rpi5",   uiName: "RPi 5",       ip: "192.168.9.120",  allowRos: false },
 
-// Target robots for the main control tabs
-const ROBOTS = [
-  { id: "localhost", name: "localhost", ip: "127.0.0.1", allowRos: true },
-  { id: "main", name: "kyubic_main", ip: "192.168.9.100", allowRos: true },
-  { id: "jetson", name: "kyubic_jetson", ip: "192.168.9.110", allowRos: false },
-  { id: "rpi5", name: "kyubic_rpi5", ip: "192.168.9.120", allowRos: false },
+  // Other Devices (監視対象のみ)
+  { type: "device",   uiName: "Sensor (ESP32)", ip: "192.168.9.5" },
+  { type: "device",   uiName: "DVL",            ip: "192.168.9.10" },
+  { type: "device",   uiName: "GNSS",           ip: "192.168.9.20" },
+  { type: "device",   uiName: "Main KVM",       ip: "192.168.9.105" },
+  { type: "device",   uiName: "Jetson KVM",     ip: "192.168.9.115" },
 ];
 
-// List of all devices to monitor in the status overview
-const ALL_DEVICES = [
-  { name: "localhost", ip: "127.0.0.1"},
-  { name: "Sensor (ESP32)", ip: "192.168.9.5" },
-  { name: "DVL", ip: "192.168.9.10" },
-  { name: "GNSS", ip: "192.168.9.20" },
-  { name: "Main PC", ip: "192.168.9.100" },
-  { name: "Main KVM", ip: "192.168.9.105" },
-  { name: "Jetson", ip: "192.168.9.110" },
-  { name: "Jetson KVM", ip: "192.168.9.115" },
-  { name: "RPi 5", ip: "192.168.9.120" },
-];
+// --- Derived Constants ---
 
-// =========================================
-// 2. Main Component
-// =========================================
+// 操作タブ用のリスト (変数名を ROBOTS -> COMPUTERS に変更)
+export const COMPUTERS = MASTER_CONFIG
+  .filter(item => item.type === "computer")
+  .map(item => ({
+    name: item.sshName,      // SSH接続等で使うホスト名
+    displayName: item.uiName,// タブに表示する名前
+    ip: item.ip,             // 一意なキーとして使用
+    allowRos: item.allowRos
+  }));
 
-function App() {
-  const isLinux = navigator.userAgent.toLowerCase().includes("linux");
+// ステータス一覧用の全リスト
+export const ALL_DEVICES = MASTER_CONFIG
+  .map(item => ({
+    name: item.uiName,       // 一覧ではわかりやすいUI名を表示
+    ip: item.ip
+  }));
 
-  // --- State Management ---
-  const [activeTab, setActiveTab] = useState(0);
-  const [deviceStatus, setDeviceStatus] = useState({});
-  const [shutdownTarget, setShutdownTarget] = useState(null);
-  const [inputIp, setInputIp] = useState(isLinux ? "localhost" : "192.168.9.100");
-
-  // --- Effects ---
+// --- Custom Hooks ---
+const useBodyScrollLock = () => {
   useEffect(() => {
-    // Initial check
-    updateAllStatuses();
-
-    // Polling every 5 seconds
-    const intervalId = setInterval(updateAllStatuses, 5000);
-    return () => clearInterval(intervalId);
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
   }, []);
+};
 
-  // --- Helpers & Handlers ---
+const useDeviceMonitor = (devices, intervalMs = 5000) => {
+  const [deviceStatus, setDeviceStatus] = useState({});
 
-  // Ping all devices to update status
-  const updateAllStatuses = () => {
-    ALL_DEVICES.forEach(async (device) => {
-      if (device.ip === "127.0.0.1") {
-        setDeviceStatus((prev) => ({ ...prev, [device.ip]: true }));
-        return;
-      }
+  const updateStatuses = useCallback(async () => {
+    // 127.0.0.1 以外のIPリストを作成
+    const targets = devices
+      .filter(d => d.ip !== "127.0.0.1")
+      .map(d => d.ip);
 
-      try {
-        const isOnline = await invoke("check_connection_status", { target: device.ip });
-        setDeviceStatus((prev) => ({ ...prev, [device.ip]: isOnline }));
-      } catch (error) {
-        setDeviceStatus((prev) => ({ ...prev, [device.ip]: false }));
-      }
-    });
-  };
-
-  // Launch SSH Terminal (Normal or ROS/Docker)
-  const handleLaunchSSH = async (robot, useRos) => {
     try {
-      const commandStr = "ros2_start -- bash -i -c byobu";
-      await invoke("open_ssh_terminal", {
-        hostname: robot.name,
-        ip: robot.ip,
-        runRos: useRos,
-        remoteCommand: useRos ? commandStr : "",
+      // ★ ここで一回だけRustを呼び出す
+      const result = await invoke("check_batch_connections", { targets });
+      
+      // localhostは常にtrueとしてマージ
+      const nextStatus = { ...result, "127.0.0.1": true };
+
+      setDeviceStatus(prev => {
+        if (JSON.stringify(prev) === JSON.stringify(nextStatus)) return prev;
+        return nextStatus;
       });
     } catch (e) {
-      alert(`Terminal Launch Error: ${e}`);
+      console.error("Monitor failed:", e);
     }
-  };
+  }, [devices]);
 
-  // Execute Shutdown Command
-  const executeShutdown = async () => {
-    if (!shutdownTarget) return;
+  useEffect(() => {
+    updateStatuses();
+    const id = setInterval(updateStatuses, intervalMs);
+    return () => clearInterval(id);
+  }, [updateStatuses, intervalMs]);
 
-    try {
-      await invoke("exec_shutdown_command", { hostname: shutdownTarget.name });
-      setShutdownTarget(null); // Close modal
-    } catch (e) {
-      alert(`Shutdown Error: ${e}`);
-    }
-  };
+  return deviceStatus;
+};
 
-  // Derived state for current view
-  const currentRobot = ROBOTS[activeTab];
-  const isCurrentRobotOnline = deviceStatus[currentRobot.ip];
+// --- Sub Components ---
 
-  // --- Render ---
+const StatusChip = memo(({ device, isOnline }) => (
+  <div className={`status-chip ${isOnline ? "chip-online" : "chip-offline"}`} title={device.ip}>
+    <span className={`status-icon ${isOnline ? "online" : "offline"}`}>●</span>
+    <span className="chip-name">{device.name}</span>
+  </div>
+));
+
+const NetworkStatusGrid = memo(({ devices, statuses }) => (
+  <div className="status-overview">
+    <h3 className="section-title">Network Status</h3>
+    <div className="status-grid">
+      {devices.map(d => d.ip !== "127.0.0.1" && (
+        <StatusChip key={d.ip} device={d} isOnline={!!statuses[d.ip]} />
+      ))}
+    </div>
+  </div>
+));
+
+const CheckItemCard = memo(({ item }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const isPass = item.status === "PASS";
+  const hasDetails = !!item.details;
+
   return (
-    <div className="container">
-      
-      {/* 1. Network Status Overview */}
-      <div className="status-overview">
-        <h3 className="section-title">Network Status</h3>
-        <div className="status-grid">
-          {ALL_DEVICES.map((device) => {
-            // Skip display if not localhost and not Linux
-            const isLocalhost = device.ip === "127.0.0.1";
-            if (isLocalhost) return null;
-
-            const isOnline = deviceStatus[device.ip];
-            return (
-              <div 
-                key={device.ip} 
-                className={`status-chip ${isOnline ? "chip-online" : "chip-offline"}`}
-                title={device.ip}
-              >
-                <span className={`status-icon ${isOnline ? "online" : "offline"}`}>
-                  {isOnline ? "●" : "○"}
-                </span>
-                <span className="chip-name">{device.name}</span>
-              </div>
-            );
-          })}
+    <div className={`check-item-card ${isPass ? "border-pass" : "border-fail"}`}>
+      <div className="check-item-header" onClick={() => hasDetails && setIsOpen(!isOpen)}>
+        <span className={`check-item-badge ${isPass ? "text-success" : "text-danger"}`}>
+          {item.status}
+        </span>
+        <div className="check-item-text-wrapper">
+          <span className="check-item-desc">{item.description}</span>
+          <span className="check-item-name">{item.name}</span>
         </div>
+        {hasDetails && <div className={`accordion-chevron ${isOpen ? "open" : ""}`}>▼</div>}
       </div>
-      
-      <div className="divider"></div>
+      {isOpen && hasDetails && <div className="check-item-details">{item.details}</div>}
+    </div>
+  );
+});
 
-      {/* 2. Robot Control Section */}
-      <h3 className="section-title">Connect Computer</h3>
-      
-      {/* Tab Navigation */}
-      <div className="tabs">
-        {ROBOTS.map((robot, index) => {
-          // Skip display if not localhost and not Linux
-          const isLocalhost = robot.ip === "127.0.0.1";
-          if (isLocalhost && !isLinux) return null;
+const CheckResultModal = memo(({ result, onClose }) => {
+  useBodyScrollLock();
+  const [showPassItems, setShowPassItems] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  
+  const fails = result?.summary.filter(i => i.status === "FAIL") || [];
+  const passes = result?.summary.filter(i => i.status === "PASS") || [];
 
-          const robotOnline = deviceStatus[robot.ip];
-          return (
-            <button
-              key={robot.id}
-              className={`tab-button ${index === activeTab ? "active" : ""} ${robotOnline ? "tab-online" : ""}`}
-              onClick={() => setActiveTab(index)}
-            >
-              <span className={`status-icon ${robotOnline ? "online" : "offline"}`}>
-                {robotOnline ? "●" : "○"}
-              </span>
-              {robot.name}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Main Control Panel (Card) */}
-      <div className={`tab-content ${isCurrentRobotOnline ? "online-mode" : "offline-mode"}`}>
-        
-        {/* Header: Name, IP, Actions */}
-        <div className="content-header">
-          <div className="header-left">
-            <h2 className="robot-title">{currentRobot.name}</h2>
-            <span className="robot-ip">{currentRobot.ip}</span>
-          </div>
-
-          <div className="header-right">
-            {/* Shutdown Button (Icon) */}
-            {isCurrentRobotOnline && (
-              <button 
-                className="header-icon-button circle-danger"
-                onClick={() => setShutdownTarget(currentRobot)}
-                title="Shutdown this device"
-              >
-                <svg 
-                  xmlns="http://www.w3.org/2000/svg" 
-                  width="18" height="18" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  strokeWidth="3.0" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                >
-                  <path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path>
-                  <line x1="12" y1="2" x2="12" y2="12"></line>
-                </svg>
-              </button>
-            )}
-
-            {/* Status Badge */}
-            <div className={`status-badge ${isCurrentRobotOnline ? "badge-online" : "badge-offline"}`}>
-              {isCurrentRobotOnline ? "📡 ONLINE" : "⏳ CONNECTING..."}
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content modal-large" onClick={e => e.stopPropagation()}>
+        <div className="modal-header">
+          <h3 className="modal-title">System Health Report</h3>
+          <button className="close-button" onClick={onClose}>&times;</button>
+        </div>
+        <div className="modal-body">
+          <div className="summary-grid">
+            <div className={`summary-card ${fails.length ? 'fail' : 'pass'}`} style={{ opacity: fails.length ? 1 : 0.5 }}>
+              <span className="summary-count">{fails.length}</span>
+              <span className="summary-label">Issues Found</span>
+            </div>
+            <div className="summary-card pass">
+              <span className="summary-count">{passes.length}</span>
+              <span className="summary-label">Checks Passed</span>
             </div>
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="button-group">
-          {isCurrentRobotOnline ? (
-            <>
-              <button className="action-button secondary" onClick={() => handleLaunchSSH(currentRobot, false)}>
-                <span className="icon">💻</span> Terminal
+          
+          {fails.length > 0 && (
+            <div className="section-container">
+              <h4 className="critical-header">⚠️ CRITICAL ISSUES</h4>
+              {fails.map((item, idx) => <CheckItemCard key={`fail-${idx}`} item={item} />)}
+            </div>
+          )}
+          
+          {passes.length > 0 && (
+            <div className="section-container">
+              <button onClick={() => setShowPassItems(!showPassItems)} className="accordion-button">
+                <span>Passed Checks</span>
+                <span className="count-badge">{passes.length}</span>
               </button>
+              {showPassItems && <div className="passed-list">{passes.map((item, idx) => <CheckItemCard key={`pass-${idx}`} item={item} />)}</div>}
+            </div>
+          )}
 
-              {currentRobot.allowRos && (
-                <button className="action-button primary" onClick={() => handleLaunchSSH(currentRobot, true)}>
-                  <span className="icon">🚀</span> Docker & ROS
-                </button>
-              )}
+          <div className="log-section">
+            <button onClick={() => setShowDetails(!showDetails)} className="text-link-button">
+              {showDetails ? "▼ Hide Raw Log" : "▶ Show Raw Log"}
+            </button>
+            {showDetails && <pre className="log-viewer">{result.detailed || "No detailed report."}</pre>}
+          </div>
+        </div>
+        <div className="modal-actions">
+          <button className="modal-button confirm primary-bg" onClick={onClose}>Done</button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const ShutdownModal = memo(({ target, onConfirm, onCancel }) => {
+  useBodyScrollLock();
+  if (!target) return null;
+
+  return (
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-content modal-compact" onClick={e => e.stopPropagation()}>
+        <h3 className="modal-title text-danger">⚠️ Shutdown Confirmation</h3>
+        <p className="modal-message">
+          Are you sure you want to turn off<br />
+          <strong className="text-strong">{target.name}</strong>?
+        </p>
+        <div className="modal-actions">
+          <button className="modal-button cancel" onClick={onCancel}>Cancel</button>
+          <button className="modal-button confirm danger-bg" onClick={onConfirm}>Shutdown</button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// --- Main App ---
+function App() {
+  const isLinux = navigator.userAgent.toLowerCase().includes("linux");
+  const deviceStatus = useDeviceMonitor(ALL_DEVICES);
+  const [activeTab, setActiveTab] = useState(0);
+  const [shutdownTarget, setShutdownTarget] = useState(null);
+  const [inputIp, setInputIp] = useState(isLinux ? "localhost" : "192.168.9.100");
+  const [checkResult, setCheckResult] = useState(null);
+  const [isChecking, setIsChecking] = useState(false);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+
+  const currentRobot = COMPUTERS[activeTab];
+  const isOnline = !!deviceStatus[currentRobot.ip];
+  
+  // Logic for System Check Widget
+  const mainRobot = COMPUTERS.find(r => r.name === "kyubic_main");
+  const isMainOnline = !!deviceStatus[mainRobot.ip];
+  const failCount = checkResult?.summary.filter(i => i.status === "FAIL").length || 0;
+  const passCount = checkResult?.summary.filter(i => i.status === "PASS").length || 0;
+
+  const handleLaunchSSH = useCallback(async (robot, useRos) => {
+    try {
+      const commandStr = "ros2_start -- bash -i -c byobu";
+      await invoke("open_ssh_terminal", { 
+        hostname: robot.name, 
+        ip: robot.ip, 
+        runRos: useRos, 
+        remoteCommand: useRos ? commandStr : "" 
+      });
+    } catch (e) { alert(`Error: ${e}`); }
+  }, []);
+
+  const executeShutdown = useCallback(async () => {
+    if (!shutdownTarget) return;
+    try {
+      await invoke("exec_shutdown_command", { hostname: shutdownTarget.name });
+      setShutdownTarget(null);
+    } catch (e) { alert(`Error: ${e}`); }
+  }, [shutdownTarget]);
+
+  const handleSystemCheck = useCallback(async () => {
+    setIsChecking(true); setCheckResult(null);
+    try {
+      const report = await invoke("run_system_check", { hostname: "kyubic_main" });
+      setCheckResult(report);
+    } catch (e) { alert(`Error: ${e}`); }
+    finally { setIsChecking(false); }
+  }, []);
+
+  useEffect(() => {
+    let interval;
+    if (isChecking) {
+      const startTime = Date.now();
+      setElapsedTime(0); // 開始時にリセット
+      interval = setInterval(() => {
+        // 現在時刻 - 開始時刻 で経過秒数を算出
+        setElapsedTime(Math.floor((Date.now() - startTime) / 1000));
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [isChecking]);
+
+  // Determine button state for System Check
+  let checkBtnProps = { icon: "🛡️", text: "RUN CHECK", disabled: false };
+  if (isChecking) checkBtnProps = { icon: "⏳", text: `CHECKING... ${elapsedTime}s`, disabled: true };
+  else if (!isMainOnline) checkBtnProps = { icon: "🚫", text: "OFFLINE", disabled: true };
+
+  return (
+    <div className="container">
+      <NetworkStatusGrid devices={ALL_DEVICES} statuses={deviceStatus} />
+      <div className="divider" />
+
+    <h3 className="section-title">Computers</h3> {/* タイトルも変更 */}
+      <div className="tabs">
+        {COMPUTERS.map((comp, idx) => ( // ROBOTS -> COMPUTERS
+          (comp.ip !== "127.0.0.1" || isLinux) && (
+            <button 
+              key={comp.ip} // idの代わりに ip をkeyにする
+              className={`tab-button ${idx === activeTab ? "active" : ""}`} 
+              onClick={() => setActiveTab(idx)}
+            >
+              <span className={`status-icon ${deviceStatus[comp.ip] ? "online" : "offline"}`}>●</span>
+              {/* sshName(name) ではなく uiName(displayName) を表示 */}
+              {comp.displayName}
+            </button>
+          )
+        ))}
+      </div>
+
+      <div className={`tab-content ${isOnline ? "online-mode" : "offline-mode"}`}>
+        <div className="content-header">
+          <div><h2 className="robot-title">{currentRobot.name}</h2><span className="robot-ip">{currentRobot.ip}</span></div>
+          <div className="header-controls">
+            {isOnline && <button className="header-icon-button" onClick={() => setShutdownTarget(currentRobot)} title="Shutdown">⏻</button>}
+            <div className={`status-badge ${isOnline ? "badge-online" : "badge-offline"}`}>{isOnline ? "ONLINE" : "OFFLINE"}</div>
+          </div>
+        </div>
+        <div className="button-group">
+          {isOnline ? (
+            <>
+              <button className="action-button secondary" onClick={() => handleLaunchSSH(currentRobot, false)}><span className="icon">💻</span> Terminal</button>
+              {currentRobot.allowRos && <button className="action-button primary" onClick={() => handleLaunchSSH(currentRobot, true)}><span className="icon">🚀</span> Docker & ROS</button>}
             </>
           ) : (
-            <div className="loading-container">
-              <div className="spinner"></div>
-              <p>Searching for device...</p>
+            <div className="loading-container"><div className="spinner"></div><p>Searching...</p></div>
+          )}
+        </div>
+      </div>
+
+      <div className="divider" />
+      
+      <div className="system-check-section">
+        <h3 className="section-title">System Diagnostics</h3>
+        <div className="hud-control-wrapper">
+          <button className="hud-run-button" onClick={handleSystemCheck} disabled={checkBtnProps.disabled}>
+            <span className="hud-btn-icon">{checkBtnProps.icon}</span>
+            <span className="hud-btn-text">{checkBtnProps.text}</span>
+          </button>
+          {checkResult && !isChecking && (
+            <div className={`hud-status-card ${failCount > 0 ? "danger" : "success"}`} onClick={() => setIsReportOpen(true)}>
+              <div className={`hud-metric ${failCount > 0 ? "metric-danger" : "metric-dimmed"}`}>
+                <div className="metric-icon">⚠️</div>
+                <div className="metric-content"><span className="metric-label">FAIL</span><span className="metric-value">{failCount}</span></div>
+              </div>
+              <div className="hud-divider"></div>
+              <div className="hud-metric metric-success">
+                <div className="metric-icon">✅</div>
+                <div className="metric-content"><span className="metric-label">PASS</span><span className="metric-value">{passCount}</span></div>
+              </div>
+              <div className="hud-arrow">details ↗</div>
             </div>
           )}
         </div>
       </div>
 
-      <div className="divider"></div>
+      <div className="divider" />
 
-      {/* 3. External Web Interfaces */}
-      <div className="web-tools-section">
-        <h3 className="section-title">Web Dashboards</h3>
-        
-        <div className="web-tools-card-horizontal">
-          {/* IP入力エリア */}
-          <div className="input-container-compact">
-            <span className="input-prefix">http://</span>
-            <input 
-              type="text" 
-              className="ip-input-enhanced" 
-              placeholder="Target IP" 
-              value={inputIp}
-              onChange={(e) => setInputIp(e.target.value)}
-            />
-          </div>
-
-          {/* DashBoard リンク */}
-          <a 
-            href={`http://${inputIp || (isLinux ? 'localhost' : '192.168.9.100')}:8080`} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="web-btn-sm dashboard-btn"
-          >
-            <span className="btn-icon-sm">📊</span>
-            <span className="btn-label-sm">DashBoard</span>
-          </a>
-
-          {/* 3d viewer リンク */}
-          <a 
-            href={`http://${inputIp || (isLinux ? 'localhost' : '192.168.9.100')}:8081`} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="web-btn-sm viewer-btn"
-          >
-            <span className="btn-icon-sm">🧊</span>
-            <span className="btn-label-sm">3d viewer</span>
-          </a>
-        </div>
+      <h3 className="section-title">Web Tools</h3>
+      <div className="web-tools-card-horizontal">
+        <div className="input-container-compact"><span className="input-prefix">http://</span><input type="text" className="ip-input-enhanced" value={inputIp} onChange={(e) => setInputIp(e.target.value)} /></div>
+        <a href={`http://${inputIp}:8080`} target="_blank" rel="noopener noreferrer" className="web-btn-sm dashboard-btn">📊 Dashboard</a>
+        <a href={`http://${inputIp}:8081`} target="_blank" rel="noopener noreferrer" className="web-btn-sm viewer-btn">🧊 3D Viewer</a>
       </div>
 
-      {/* Shutdown Confirmation Modal */}
-      {shutdownTarget && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <h3 className="modal-title">⚠️ Confirm Shutdown</h3>
-            <p className="modal-message">
-              Are you sure you want to shutdown <strong>{shutdownTarget.name}</strong>?<br/>
-              ({shutdownTarget.ip})
-            </p>
-            <div className="modal-actions">
-              <button className="modal-button cancel" onClick={() => setShutdownTarget(null)}>
-                Cancel
-              </button>
-              <button className="modal-button confirm" onClick={executeShutdown}>
-                Shutdown Now
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {shutdownTarget && <ShutdownModal target={shutdownTarget} onConfirm={executeShutdown} onCancel={() => setShutdownTarget(null)} />}
+      {isReportOpen && checkResult && <CheckResultModal result={checkResult} onClose={() => setIsReportOpen(false)} />}
     </div>
   );
 }
